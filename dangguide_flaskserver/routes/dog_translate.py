@@ -35,8 +35,10 @@ def translate_dog():
     }
     """
     data = request.get_json(silent=True) or {}
-    if not data:
-        return _err("JSON body가 필요합니다.", 400, error_code="MISSING_BODY")
+    names: List[str] = data.get("names") or []
+
+    if not isinstance(names, list) or not names:
+        return _err("names 리스트가 필요합니다.", 400, error_code="INVALID_BODY")
 
     fields_to_translate = [
         "name",
