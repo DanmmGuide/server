@@ -7,16 +7,25 @@ load_dotenv()
 
 # ✅ 2) 그 다음에 라우트들을 import
 from routes.thedogapi import dogapi_route
-from routes.dog_translate import dog_translate_route  # 번역 라우트도 같이 등록 가능
+from routes.dog_translate import dog_translate_route  # 번역 라우트
+from routes.board_routes import board_bp             # ✅ 게시판 라우트
+from db import init_db                              # ✅ DB 초기화 함수
+
 
 def create_app() -> Flask:
     app = Flask(__name__)
 
-    # /api 밑에 dogapi 라우트 등록
+    # ✅ 앱 시작할 때 DB 테이블 초기화
+    with app.app_context():
+        init_db()
+
+    # /api 밑에 라우트 등록
     app.register_blueprint(dogapi_route, url_prefix="/api")
     app.register_blueprint(dog_translate_route, url_prefix="/api")  # 번역 API: /api/translate/dog
+    app.register_blueprint(board_bp, url_prefix="/api")             # 게시판 API: /api/posts
 
     return app
+
 
 app = create_app()
 
