@@ -118,15 +118,9 @@ def list_post_images(post_id):
     return jsonify({"ok": True, "images": image_urls}), 200
 
 @board_bp.get("/posts/<int:post_id>")
-def get_post_detail_route(post_id):
-    detail = get_post_detail(post_id)
-    if detail is None:
-        return jsonify({"ok": False, "error": "post not found"}), 404
+def get_post_detail_route(post_id: int):
+    row = get_post_detail(post_id)  # 내부에서 comments까지 붙여서 dict 하나로 준다고 가정
+    if not row:
+        return jsonify({"ok": False, "error": "NOT_FOUND"}), 404
 
-    # 이미지 URL로 변환
-    base_url = request.host_url.rstrip("/")
-    detail["images"] = [
-        f"{base_url}/static/post_images/{img}" for img in detail["images"]
-    ]
-
-    return jsonify({"ok": True, "post": detail}), 200
+    return jsonify({"ok": True, "post": row}), 200
