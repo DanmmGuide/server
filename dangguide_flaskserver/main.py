@@ -2,15 +2,16 @@
 from flask import Flask
 from dotenv import load_dotenv
 
-# ✅ 1) .env를 제일 먼저 읽는다
 load_dotenv()
 
-# ✅ 2) 그 다음에 라우트들을 import
-from routes.thedogapi import dogapi_route
-from routes.dog_translate import dog_translate_route  # 번역 라우트
-from routes.board_routes import board_bp             # ✅ 게시판 라우트
-from db import init_db                              # ✅ DB 초기화 함수
+from routes.board_routes import board_bp
+from routes.breed_routes import breed_bp
+from routes.breed_admin_routes import breed_admin_bp
 from routes.user_routes import user_bp
+
+from db import init_db
+from dao.breed_dao import count_breeds
+from dao.breed_sync import sync_breeds_from_api
 
 
 def create_app() -> Flask:
@@ -20,11 +21,19 @@ def create_app() -> Flask:
     with app.app_context():
         init_db()
 
-    # /api 밑에 라우트 등록
-    app.register_blueprint(dogapi_route, url_prefix="/api")
-    app.register_blueprint(dog_translate_route, url_prefix="/api")  # 번역 API: /api/translate/dog
+    if count_breeds() == 0:
+        print("🔄 dog_breeds 테이블이 비어있음 → DogAPI에서 자동 동기화 시작...")
+        try:
+            saved = sync_breeds_from_api()
+            print(f"✅ 동기화 완료! 저장된 개수: {saved}")
+        except Exception as e:
+            print(f"❌ 동기화 실패: {e}")
+
+    app.register_blueprint(breed_bp, url_prefix="/api")
+    app.register_blueprint(breed_admin_bp, url_prefix="/api")
     app.register_blueprint(board_bp, url_prefix="/api")             # 게시판 API: /api/posts
     app.register_blueprint(user_bp, url_prefix="/api")
+
     return app
 
 

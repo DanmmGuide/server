@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from dao.board_dao import (
     get_posts, create_post, get_post,
     get_comments, create_comment, toggle_like
-    ,add_post_image, get_post_images, get_post_detail
+    ,add_post_image, get_post_detail
 )
 import os
 from werkzeug.utils import secure_filename
