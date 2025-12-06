@@ -10,6 +10,7 @@ from routes.thedogapi import dogapi_route
 from routes.dog_translate import dog_translate_route  # 번역 라우트
 from routes.board_routes import board_bp             # ✅ 게시판 라우트
 from db import init_db                              # ✅ DB 초기화 함수
+from routes.user_routes import user_bp
 
 
 def create_app() -> Flask:
@@ -23,7 +24,7 @@ def create_app() -> Flask:
     app.register_blueprint(dogapi_route, url_prefix="/api")
     app.register_blueprint(dog_translate_route, url_prefix="/api")  # 번역 API: /api/translate/dog
     app.register_blueprint(board_bp, url_prefix="/api")             # 게시판 API: /api/posts
-
+    app.register_blueprint(user_bp, url_prefix="/api")
     return app
 
 
