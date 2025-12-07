@@ -104,5 +104,28 @@ def init_db():
         );
     """)
 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS dog_breeds
+        (
+            id  INTEGER PRIMARY KEY,
+            -- TheDogAPI의 breed id 그대로 사용
+            name_en TEXT,
+            name_ko TEXT,
+            temperament_en TEXT,
+            temperament_ko TEXT,
+            bred_for_en TEXT,
+            bred_for_ko TEXT,
+            breed_group_en TEXT,
+            breed_group_ko TEXT,
+            life_span_en TEXT,
+            life_span_ko TEXT,
+            origin_en TEXT,
+            origin_ko TEXT,
+            weight_kg TEXT,
+            height_cm TEXT,
+            image_url TEXT
+        );
+    """)
+
     conn.commit()
     conn.close()

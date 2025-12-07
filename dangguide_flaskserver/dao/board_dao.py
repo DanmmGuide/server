@@ -47,7 +47,7 @@ def get_posts():
             p.like_count,
             p.comment_count
         FROM posts p
-        JOIN users u ON p.user_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         ORDER BY p.id DESC
     """)
 
@@ -58,15 +58,16 @@ def get_posts():
         {
             "id": row["id"],
             "user_id": row["user_id"],
-            "username": row["username"],
+            "username": row["username"],  # None일 수 있음
             "title": row["title"],
             "content": row["content"],
             "created_at": row["created_at"],
             "like_count": row["like_count"],
-            "comment_count": row["comment_count"]
+            "comment_count": row["comment_count"],
         }
         for row in rows
     ]
+
 
 
 def get_post(post_id: int):
@@ -202,11 +203,10 @@ def get_post_detail(post_id: int):
     conn = get_conn()
     cur = conn.cursor()
 
-    # 게시글 정보 + 작성자 이름
     cur.execute("""
         SELECT p.*, u.username
         FROM posts p
-        JOIN users u ON p.user_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         WHERE p.id = ?
     """, (post_id,))
     post = cur.fetchone()
@@ -214,6 +214,9 @@ def get_post_detail(post_id: int):
     if post is None:
         conn.close()
         return None
+
+    # 이하 그대로...
+
 
     # 이미지
     cur.execute("SELECT image_path FROM post_images WHERE post_id = ?", (post_id,))
@@ -251,3 +254,4 @@ def get_post_detail(post_id: int):
         "images": images,
         "comments": comments
     }
+
