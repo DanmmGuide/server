@@ -1,4 +1,4 @@
-# routes/thedogapi.py  (이제 blueprint/route 없음)
+# routes/thedogapi.py
 
 from __future__ import annotations
 from typing import List, Dict, Any, Optional
@@ -28,16 +28,11 @@ def _get_session() -> requests.Session:
     return session
 
 
-# TheDogAPI에서 견종 리스트 가져오기
-def fetch_breeds(limit: int) -> List[Dict[str, Any]]:
+# ✅ 전체 견종 리스트 가져오기 (limit/page 안 씀 = 전부)
+def fetch_all_breeds() -> List[Dict[str, Any]]:
     s = _get_session()
-    params = {
-        "limit": limit,
-        "page": 0,
-    }
 
-    resp = s.get(f"{DOG_API_BASE_URL}/breeds",
-                 params=params, timeout=HTTP_TIMEOUT)
+    resp = s.get(f"{DOG_API_BASE_URL}/breeds", timeout=HTTP_TIMEOUT)
 
     if resp.status_code == 401:
         raise RuntimeError(("UNAUTHORIZED", 502, "TheDogAPI 키 오류 또는 미설정"))
@@ -66,6 +61,19 @@ def fetch_breeds(limit: int) -> List[Dict[str, Any]]:
             502,
             f"TheDogAPI 응답 파싱 실패: {e}",
         ))
+
+
+# (원래 함수가 필요하면 남겨두고, 내부에서 위 함수 재사용하게 해도 됨)
+def fetch_breeds(limit: int) -> List[Dict[str, Any]]:
+    """
+    옛날 코드 호환용: limit가 충분히 크면 사실상 전체.
+    새로 짤 땐 fetch_all_breeds()를 직접 쓰는 걸 추천.
+    """
+    all_breeds = fetch_all_breeds()
+    # 너무 적게 잘려나가는 문제 방지용: limit이 전체보다 크면 그냥 전체 리턴
+    if limit >= len(all_breeds):
+        return all_breeds
+    return all_breeds[:limit]
 
 
 # 필요한 필드만 정리
@@ -107,3 +115,26 @@ def translate_breed(breed: Dict[str, Any]) -> Dict[str, Any]:
                 breed[dst] = "(번역 실패)"
 
     return breed
+
+def fetch_all_breeds() -> List[Dict[str, Any]]:
+    s = _get_session()
+
+    all_items = []
+    page = 0
+
+    while True:
+        params = {"limit": 50, "page": page}
+        resp = s.get(f"{DOG_API_BASE_URL}/breeds",
+                     params=params, timeout=HTTP_TIMEOUT)
+
+        if resp.status_code != 200:
+            break
+
+        items = resp.json()
+        if not items:
+            break  # 더 이상 없음
+
+        all_items.extend(items)
+        page += 1
+
+    return all_items

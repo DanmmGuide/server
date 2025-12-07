@@ -1,5 +1,5 @@
 from dao.breed_dao import save_breed
-from routes.thedogapi import fetch_breeds, normalize_breed, translate_breed
+from routes.thedogapi import fetch_all_breeds, normalize_breed, translate_breed
 
 
 def sync_breeds_from_api(limit: int = 200) -> int:
