@@ -103,27 +103,25 @@ def init_db():
             caution TEXT               -- 주의사항
         );
     """)
-
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS dog_breeds
-        (
-            id  INTEGER PRIMARY KEY,
-            -- TheDogAPI의 breed id 그대로 사용
-            name_en TEXT,
-            name_ko TEXT,
-            temperament_en TEXT,
-            temperament_ko TEXT,
-            bred_for_en TEXT,
-            bred_for_ko TEXT,
-            breed_group_en TEXT,
-            breed_group_ko TEXT,
-            life_span_en TEXT,
-            life_span_ko TEXT,
-            origin_en TEXT,
-            origin_ko TEXT,
-            weight_kg TEXT,
-            height_cm TEXT,
-            image_url TEXT
+        CREATE TABLE IF NOT EXISTS user_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER NOT NULL UNIQUE,   -- users 테이블과 1:1 매칭
+
+            guardian_name TEXT,
+            pet_name TEXT,
+            species TEXT,
+            birth TEXT,
+            gender TEXT,
+            neutered TEXT,
+            weight TEXT,
+
+            profile_image TEXT,                -- 이미지 경로 저장
+
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
     """)
 
