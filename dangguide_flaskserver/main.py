@@ -8,6 +8,7 @@ from routes.board_routes import board_bp
 from routes.breed_routes import breed_bp
 from routes.breed_admin_routes import breed_admin_bp
 from routes.user_routes import user_bp
+from routes.user_profile_routes import user_profile_bp
 
 from db import init_db
 from dao.breed_dao import count_breeds
@@ -33,7 +34,7 @@ def create_app() -> Flask:
     app.register_blueprint(breed_admin_bp, url_prefix="/api")
     app.register_blueprint(board_bp, url_prefix="/api")             # 게시판 API: /api/posts
     app.register_blueprint(user_bp, url_prefix="/api")
-
+    app.register_blueprint(user_profile_bp, url_prefix="/api")
     return app
 
 
