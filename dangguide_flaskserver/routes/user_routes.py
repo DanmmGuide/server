@@ -6,6 +6,7 @@ from dao.user_dao import (
     create_user,
     validate_login,
     find_user_by_username,
+    delete_user_by_credentials
 )
 
 user_bp = Blueprint("user", __name__)
@@ -68,3 +69,27 @@ def login_user():
       "username": user["username"],
     }
   }), 200
+
+@user_bp.post("/users/delete")
+def delete_user_route():
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({
+            "ok": False,
+            "error": "username, password 필요"
+        }), 400
+
+    ok = delete_user_by_credentials(username, password)
+
+    if not ok:
+        return jsonify({
+            "ok": False,
+            "error": "아이디 또는 비밀번호가 올바르지 않습니다."
+        }), 400
+
+    # 여기까지 오면 users에서 해당 유저 삭제 완료
+    # posts / comments / post_likes / user_profiles 도 FK CASCADE로 함께 삭제됨
+    return jsonify({"ok": True}), 200

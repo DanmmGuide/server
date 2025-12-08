@@ -71,3 +71,42 @@ def validate_login(username: str, password: str) -> Optional[Dict[str, Any]]:
     "id": user["id"],
     "username": user["username"],
   }
+
+def delete_user_by_credentials(username: str, password: str) -> bool:
+    """
+    username + password 확인 후 회원 삭제.
+    성공 시 True, 실패 시 False 반환.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+
+    # 1) 유저 조회
+    cur.execute(
+      """
+      SELECT id, password
+      FROM users
+      WHERE username = ?
+      """,
+      (username,),
+    )
+    row = cur.fetchone()
+
+    if not row:
+      conn.close()
+      return False
+
+    user_id, stored_pw = row
+
+    # 비밀번호 확인 (지금은 평문 저장 기준. 나중에 해시 쓰면 여기서 check_password_hash 등으로 변경)
+    if stored_pw != password:
+      conn.close()
+      return False
+
+    # 2) 삭제 (ON DELETE CASCADE로 posts, comments, post_likes, user_profiles 같이 삭제)
+    cur.execute(
+      "DELETE FROM users WHERE id = ?",
+      (user_id,),
+    )
+    conn.commit()
+    conn.close()
+    return True

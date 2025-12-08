@@ -1,70 +1,139 @@
-# dangguide_flaskserver/routes/board_routes.py
-from flask import Blueprint, request, jsonify, session
-
+from flask import Blueprint, request, jsonify
 from dao.board_dao import (
-    get_post_detail,
-    add_comment,
-    toggle_like,
+    get_posts, create_post, get_post,
+    get_comments, create_comment, toggle_like,
+    add_post_image, get_post_detail
 )
+from werkzeug.utils import secure_filename
+from pathlib import Path
+from datetime import datetime
 
-board_bp = Blueprint("board_bp", __name__)
+board_bp = Blueprint("board", __name__)
 
+# ====================================
+# 🔥 업로드 경로 설정 (절대경로)
+# ====================================
+BASE_DIR = Path(__file__).resolve().parent.parent   # dangguide_flaskserver/
+UPLOAD_FOLDER = BASE_DIR / "static" / "post_images"
+ALLOWED_EXT = {"jpg", "jpeg", "png", "gif"}
 
-def get_current_user_id() -> int | None:
-    """
-    로그인 시 session["user_id"]에 넣어뒀다고 가정.
-    JWT 쓰면 여기서 토큰 decode해서 user_id 꺼내기.
-    """
-    return session.get("user_id")
-
-
-# -----------------------------
-# 게시글 상세 (글쓴이/댓글 작성자 이름 포함)
-# -----------------------------
-@board_bp.route("/posts/<int:post_id>", methods=["GET"])
-def api_get_post_detail(post_id):
-    post = get_post_detail(post_id)
-    if post is None:
-        return jsonify({"ok": False, "error": "NOT_FOUND"}), 404
-
-    return jsonify({"ok": True, "post": post})
+# 폴더 자동 생성
+UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
 
-# -----------------------------
-# 댓글 작성 (로그인 유저 기준)
-# -----------------------------
-@board_bp.route("/posts/<int:post_id>/comments", methods=["POST"])
-def api_add_comment(post_id):
-    user_id = get_current_user_id()
-    if user_id is None:
-        return jsonify({"ok": False, "error": "UNAUTHORIZED"}), 401
-
-    data = request.get_json() or {}
-    content = data.get("content", "").strip()
-
-    if not content:
-        return jsonify({"ok": False, "error": "EMPTY_CONTENT"}), 400
-
-    add_comment(post_id, user_id, content)
-
-    # 새 댓글까지 포함된 최신 post 정보 다시 내려주기
-    post = get_post_detail(post_id)
-    return jsonify({"ok": True, "post": post})
+def allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
 
 
-# -----------------------------
-# 좋아요 토글 (로그인 유저 기준)
-# -----------------------------
-@board_bp.route("/posts/<int:post_id>/like", methods=["POST"])
-def api_toggle_like(post_id):
-    user_id = get_current_user_id()
-    if user_id is None:
-        return jsonify({"ok": False, "error": "UNAUTHORIZED"}), 401
+# ====================================
+# 📌 게시글 목록
+# ====================================
+@board_bp.get("/posts")
+def list_posts():
+    posts = get_posts()
+    return jsonify({"ok": True, "posts": posts}), 200
 
-    liked, like_count = toggle_like(post_id, user_id)
 
-    return jsonify({
-        "ok": True,
-        "liked": liked,
-        "like_count": like_count,
-    })
+# ====================================
+# 📌 게시글 생성
+# ====================================
+@board_bp.post("/posts")
+def create_post_route():
+    data = request.get_json(silent=True) or {}
+
+    user_id = data.get("user_id")
+    title = data.get("title")
+    content = data.get("content")
+
+    if not all([user_id, title, content]):
+        return jsonify({"ok": False, "error": "user_id, title, content 필요"}), 400
+
+    post = create_post(user_id, title, content)
+    return jsonify({"ok": True, "post": post}), 201
+
+
+# ====================================
+# 📌 댓글 목록
+# ====================================
+@board_bp.get("/posts/<int:post_id>/comments")
+def comments_list(post_id: int):
+    return jsonify({"ok": True, "comments": get_comments(post_id)}), 200
+
+
+# ====================================
+# 📌 댓글 작성
+# ====================================
+@board_bp.post("/posts/<int:post_id>/comments")
+def add_comment(post_id: int):
+    data = request.get_json(silent=True) or {}
+    user_id = data.get("user_id")
+    content = data.get("content")
+
+    if not user_id or not content:
+        return jsonify({"ok": False, "error": "user_id, content 필요"}), 400
+
+    create_comment(user_id, post_id, content)
+    return jsonify({"ok": True}), 201
+
+
+# ====================================
+# 📌 좋아요 토글
+# ====================================
+@board_bp.post("/posts/<int:post_id>/like")
+def like_post(post_id: int):
+    data = request.get_json(silent=True) or {}
+    user_id = data.get("user_id")
+
+    if not user_id:
+        return jsonify({"ok": False, "error": "user_id 필요"}), 400
+
+    liked = toggle_like(post_id, user_id)
+    return jsonify({"ok": True, "liked": liked}), 200
+
+
+# ====================================
+# 📌 이미지 업로드
+# ====================================
+@board_bp.post("/posts/<int:post_id>/images")
+def upload_post_images(post_id: int):
+    # Flutter에서 MultipartRequest에 'images' 필드로 보내고 있음
+    if "images" not in request.files:
+        return jsonify({"ok": False, "error": "'images' 필드 필요"}), 400
+
+    files = request.files.getlist("images")
+    saved_files = []
+
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            timestamp = datetime.utcnow().timestamp()
+            final_name = f"{post_id}_{timestamp}_{filename}"
+
+            save_path = UPLOAD_FOLDER / final_name
+            file.save(str(save_path))  # Path → str
+
+            # DB에 파일 이름 저장 (상대경로만 저장)
+            add_post_image(post_id, final_name)
+            saved_files.append(final_name)
+        else:
+            return jsonify({"ok": False, "error": "허용되지 않는 파일 형식"}), 400
+
+    return jsonify({"ok": True, "files": saved_files}), 201
+
+
+# ====================================
+# 📌 게시글 상세
+# ====================================
+@board_bp.get("/posts/<int:post_id>")
+def get_post_detail_route(post_id: int):
+    detail = get_post_detail(post_id)
+    if detail is None:
+        return jsonify({"ok": False, "error": "post not found"}), 404
+
+    # detail["images"]는 DB에서 가져온 파일 이름 리스트라고 가정
+    base_url = request.host_url.rstrip("/")
+    detail["images"] = [
+        f"{base_url}/static/post_images/{img}" for img in detail["images"]
+    ]
+
+    return jsonify({"ok": True, "post": detail}), 200
