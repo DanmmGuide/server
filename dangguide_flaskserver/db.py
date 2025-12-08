@@ -125,20 +125,6 @@ def init_db():
         );
     """)
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_profiles (
-            user_id INTEGER PRIMARY KEY,
-            guardian_name TEXT,
-            pet_name TEXT,
-            pet_species TEXT,
-            pet_birth TEXT,
-            pet_gender TEXT,
-            pet_neutered TEXT,
-            pet_weight TEXT,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-    """)
-
 
     conn.commit()
     conn.close()
