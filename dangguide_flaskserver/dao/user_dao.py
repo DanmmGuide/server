@@ -1,43 +1,73 @@
+from __future__ import annotations
+
+from typing import Optional, Dict, Any
+
 from db import get_conn
-from datetime import datetime
 
 
-def create_user(username: str, password: str):
-    """회원가입 (비밀번호 평문 저장)"""
-    conn = get_conn()
-    cur = conn.cursor()
+def find_user_by_username(username: str) -> Optional[Dict[str, Any]]:
+  conn = get_conn()
+  cur = conn.cursor()
 
-    try:
-        cur.execute("""
-            INSERT INTO users (username, password, created_at)
-            VALUES (?, ?, ?)
-        """, (username, password, datetime.utcnow().isoformat()))
-        conn.commit()
-        user_id = cur.lastrowid
-        return {"id": user_id, "username": username}
-    except Exception as e:
-        return None   # username UNIQUE 충돌 등
-    finally:
-        conn.close()
+  cur.execute(
+    "SELECT id, username, password, created_at FROM users WHERE username = ?",
+    (username,),
+  )
+  row = cur.fetchone()
+  conn.close()
+
+  if row is None:
+    return None
+
+  return {
+    "id": row["id"],
+    "username": row["username"],
+    "password": row["password"],
+    "created_at": row["created_at"],
+  }
 
 
-def find_user_by_username(username: str):
-    conn = get_conn()
-    cur = conn.cursor()
+def create_user(username: str, password: str) -> Optional[Dict[str, Any]]:
+  """
+  단순 예제용: 비밀번호 평문 저장.
+  실제 서비스라면 반드시 해시 사용해야 함.
+  """
+  conn = get_conn()
+  cur = conn.cursor()
 
-    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
-    row = cur.fetchone()
+  try:
+    cur.execute(
+      """
+      INSERT INTO users (username, password)
+      VALUES (?, ?)
+      """,
+      (username, password),
+    )
+    conn.commit()
+
+    user_id = cur.lastrowid
+
+    return {
+      "id": user_id,
+      "username": username,
+    }
+  except Exception:
+    conn.rollback()
+    return None
+  finally:
     conn.close()
 
-    return row
 
+def validate_login(username: str, password: str) -> Optional[Dict[str, Any]]:
+  user = find_user_by_username(username)
+  if user is None:
+    return None
 
-def validate_login(username: str, password: str):
-    user = find_user_by_username(username)
-    if user is None:
-        return None
+  # 평문 비교 (예제용)
+  if user["password"] != password:
+    return None
 
-    if user["password"] != password:  # 평문 비교
-        return None
-
-    return user
+  return {
+    "id": user["id"],
+    "username": user["username"],
+  }
