@@ -1,3 +1,5 @@
+# dangguide_flaskserver/routes/board_routes.py
+
 from flask import Blueprint, request, jsonify
 from dao.board_dao import (
     get_posts, create_post, get_post,
@@ -17,7 +19,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent   # dangguide_flaskserver/
 UPLOAD_FOLDER = BASE_DIR / "static" / "post_images"
 ALLOWED_EXT = {"jpg", "jpeg", "png", "gif"}
 
-# 폴더 자동 생성
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
 
@@ -61,7 +62,7 @@ def comments_list(post_id: int):
 
 
 # ====================================
-# 📌 댓글 작성
+# 📌 댓글 작성 (여러 번 허용)
 # ====================================
 @board_bp.post("/posts/<int:post_id>/comments")
 def add_comment(post_id: int):
@@ -72,6 +73,7 @@ def add_comment(post_id: int):
     if not user_id or not content:
         return jsonify({"ok": False, "error": "user_id, content 필요"}), 400
 
+    # ❌ 중복 검사 없음 → 같은 유저가 여러 댓글 달 수 있음
     create_comment(user_id, post_id, content)
     return jsonify({"ok": True}), 201
 
@@ -96,7 +98,6 @@ def like_post(post_id: int):
 # ====================================
 @board_bp.post("/posts/<int:post_id>/images")
 def upload_post_images(post_id: int):
-    # Flutter에서 MultipartRequest에 'images' 필드로 보내고 있음
     if "images" not in request.files:
         return jsonify({"ok": False, "error": "'images' 필드 필요"}), 400
 
@@ -110,9 +111,8 @@ def upload_post_images(post_id: int):
             final_name = f"{post_id}_{timestamp}_{filename}"
 
             save_path = UPLOAD_FOLDER / final_name
-            file.save(str(save_path))  # Path → str
+            file.save(str(save_path))
 
-            # DB에 파일 이름 저장 (상대경로만 저장)
             add_post_image(post_id, final_name)
             saved_files.append(final_name)
         else:
@@ -126,11 +126,17 @@ def upload_post_images(post_id: int):
 # ====================================
 @board_bp.get("/posts/<int:post_id>")
 def get_post_detail_route(post_id: int):
-    detail = get_post_detail(post_id)
+    """
+    GET /api/posts/<post_id>?user_id=4
+    → liked_by_me 계산하려면 user_id를 쿼리스트링으로 받음
+    """
+    current_user_id = request.args.get("user_id", type=int)
+
+    detail = get_post_detail(post_id, current_user_id)
     if detail is None:
         return jsonify({"ok": False, "error": "post not found"}), 404
 
-    # detail["images"]는 DB에서 가져온 파일 이름 리스트라고 가정
+    # detail["images"] 는 DB에 저장된 파일 이름 리스트
     base_url = request.host_url.rstrip("/")
     detail["images"] = [
         f"{base_url}/static/post_images/{img}" for img in detail["images"]
